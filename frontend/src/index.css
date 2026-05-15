@@ -1,0 +1,23 @@
+:root {
+  --ttm-bg: #f4f6f9;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--ttm-bg);
+}
+
+.navbar-brand {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.card {
+  border: none;
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.06);
+}
+
+.status-pill {
+  font-size: 0.75rem;
+}
