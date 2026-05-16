@@ -1,0 +1,25 @@
+# Git
+.git
+.gitignore
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local env files (NEVER ship secrets)
+.env
+backend/.env
+frontend/.env
+
+# Dev node_modules (installed fresh inside Docker)
+node_modules
+backend/node_modules
+frontend/node_modules
+
+# Pre-built dist (built fresh inside Docker)
+frontend/dist
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode
