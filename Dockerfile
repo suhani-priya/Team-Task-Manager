@@ -28,7 +28,6 @@ COPY --from=frontend-builder /app/frontend/dist ../frontend/dist
 
 # Railway injects PORT automatically; fall back to 5000 locally
 ENV NODE_ENV=production
-ENV SERVE_STATIC=1
 
 EXPOSE 5000
 

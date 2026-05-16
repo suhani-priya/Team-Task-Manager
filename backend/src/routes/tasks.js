@@ -23,6 +23,7 @@ const createChecks = [
   body('title').trim().isLength({ min: 1, max: 300 }),
   body('description').optional().isString().isLength({ max: 5000 }),
   body('status').optional().isIn(['todo', 'in_progress', 'done']),
+  body('priority').optional().isIn(['low', 'medium', 'high']),
   body('assignedTo').optional({ nullable: true }).isMongoId(),
   body('dueDate').optional({ nullable: true }).isISO8601().toDate(),
 ];
@@ -34,13 +35,14 @@ router.post('/', requireProjectAdmin, createChecks, async (req, res, next) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description = '', status = 'todo', assignedTo = null, dueDate = null } = req.body;
+    const { title, description = '', status = 'todo', priority = 'medium', assignedTo = null, dueDate = null } = req.body;
 
     const task = await Task.create({
       project: req.project._id,
       title,
       description,
       status,
+      priority,
       assignedTo: assignedTo || null,
       dueDate: dueDate || null,
       createdBy: req.userId,
@@ -62,6 +64,7 @@ const patchChecks = [
   body('title').optional().trim().isLength({ min: 1, max: 300 }),
   body('description').optional().isString().isLength({ max: 5000 }),
   body('status').optional().isIn(['todo', 'in_progress', 'done']),
+  body('priority').optional().isIn(['low', 'medium', 'high']),
   body('assignedTo').optional({ nullable: true }).isMongoId(),
   body('dueDate').optional({ nullable: true }).isISO8601().toDate(),
 ];
@@ -81,6 +84,7 @@ router.patch('/:taskId', patchChecks, checkValidation, async (req, res, next) =>
       if (req.body.title !== undefined) task.title = req.body.title;
       if (req.body.description !== undefined) task.description = req.body.description;
       if (req.body.status !== undefined) task.status = req.body.status;
+      if (req.body.priority !== undefined) task.priority = req.body.priority;
       if (req.body.assignedTo !== undefined) task.assignedTo = req.body.assignedTo || null;
       if (req.body.dueDate !== undefined) task.dueDate = req.body.dueDate;
     } else {

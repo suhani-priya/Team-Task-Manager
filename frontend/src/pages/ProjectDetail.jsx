@@ -16,6 +16,12 @@ function statusBadge(status) {
   return <span className={`badge bg-${color} status-pill text-capitalize`}>{label}</span>;
 }
 
+function priorityBadge(priority) {
+  const map = { low: 'info', medium: 'warning', high: 'danger' };
+  const color = map[priority] || 'secondary';
+  return <span className={`badge bg-${color} text-capitalize`}>{priority || 'medium'}</span>;
+}
+
 export default function ProjectDetail() {
   const { projectId } = useParams();
   const { user } = useAuth();
@@ -33,6 +39,7 @@ export default function ProjectDetail() {
   const [taskDesc, setTaskDesc] = useState('');
   const [taskDue, setTaskDue] = useState('');
   const [taskAssignee, setTaskAssignee] = useState('');
+  const [taskPriority, setTaskPriority] = useState('medium');
 
   const loadProject = async () => {
     const p = await api(`/api/projects/${projectId}`);
@@ -73,6 +80,20 @@ export default function ProjectDetail() {
     }
     return list;
   }, [project]);
+
+  // Tasks-per-user breakdown
+  const tasksPerUser = useMemo(() => {
+    const map = {};
+    for (const t of tasks) {
+      if (!t.assignedTo) continue;
+      const uid = t.assignedTo._id;
+      const name = t.assignedTo.name;
+      if (!map[uid]) map[uid] = { name, total: 0, todo: 0, in_progress: 0, done: 0 };
+      map[uid].total += 1;
+      if (map[uid][t.status] !== undefined) map[uid][t.status] += 1;
+    }
+    return Object.values(map);
+  }, [tasks]);
 
   const addMember = async (e) => {
     e.preventDefault();
@@ -124,6 +145,7 @@ export default function ProjectDetail() {
         description: taskDesc,
         dueDate: taskDue || null,
         assignedTo: taskAssignee || null,
+        priority: taskPriority,
       };
       await api(`/api/projects/${projectId}/tasks`, {
         method: 'POST',
@@ -133,6 +155,7 @@ export default function ProjectDetail() {
       setTaskDesc('');
       setTaskDue('');
       setTaskAssignee('');
+      setTaskPriority('medium');
       await loadTasks();
     } catch (err) {
       setError(err.message || 'Could not create task.');
@@ -221,7 +244,9 @@ export default function ProjectDetail() {
       {error ? <div className="alert alert-warning">{error}</div> : null}
 
       <div className="row g-4">
+        {/* Left column: Team + New Task form + Tasks per member */}
         <div className="col-lg-5">
+          {/* Team panel */}
           <div className="card">
             <div className="card-body">
               <h2 className="h5 card-title">Team</h2>
@@ -307,15 +332,14 @@ export default function ProjectDetail() {
             </div>
           </div>
 
+          {/* New task form — admins only */}
           {isAdmin ? (
             <div className="card mt-4">
               <div className="card-body">
                 <h2 className="h5 card-title">New task</h2>
                 <form onSubmit={createTask}>
                   <div className="mb-2">
-                    <label className="form-label small mb-0" htmlFor="tTitle">
-                      Title
-                    </label>
+                    <label className="form-label small mb-0" htmlFor="tTitle">Title</label>
                     <input
                       id="tTitle"
                       className="form-control form-control-sm"
@@ -326,9 +350,7 @@ export default function ProjectDetail() {
                     />
                   </div>
                   <div className="mb-2">
-                    <label className="form-label small mb-0" htmlFor="tDesc">
-                      Description
-                    </label>
+                    <label className="form-label small mb-0" htmlFor="tDesc">Description</label>
                     <textarea
                       id="tDesc"
                       className="form-control form-control-sm"
@@ -338,11 +360,9 @@ export default function ProjectDetail() {
                       maxLength={5000}
                     />
                   </div>
-                  <div className="row g-2">
+                  <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small mb-0" htmlFor="tDue">
-                        Due date
-                      </label>
+                      <label className="form-label small mb-0" htmlFor="tDue">Due date</label>
                       <input
                         id="tDue"
                         type="date"
@@ -352,33 +372,76 @@ export default function ProjectDetail() {
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small mb-0" htmlFor="tAssign">
-                        Assign to
-                      </label>
+                      <label className="form-label small mb-0" htmlFor="tPriority">Priority</label>
                       <select
-                        id="tAssign"
+                        id="tPriority"
                         className="form-select form-select-sm"
-                        value={taskAssignee}
-                        onChange={(e) => setTaskAssignee(e.target.value)}
+                        value={taskPriority}
+                        onChange={(e) => setTaskPriority(e.target.value)}
                       >
-                        <option value="">Unassigned</option>
-                        {memberOptions.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.label}
-                          </option>
-                        ))}
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
                       </select>
                     </div>
                   </div>
-                  <button type="submit" className="btn btn-primary btn-sm mt-3">
+                  <div className="mb-2">
+                    <label className="form-label small mb-0" htmlFor="tAssign">Assign to</label>
+                    <select
+                      id="tAssign"
+                      className="form-select form-select-sm"
+                      value={taskAssignee}
+                      onChange={(e) => setTaskAssignee(e.target.value)}
+                    >
+                      <option value="">Unassigned</option>
+                      {memberOptions.map((m) => (
+                        <option key={m.id} value={m.id}>{m.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button type="submit" className="btn btn-primary btn-sm mt-2">
                     Create task
                   </button>
                 </form>
               </div>
             </div>
           ) : null}
+
+          {/* Tasks per member breakdown */}
+          {tasksPerUser.length > 0 ? (
+            <div className="card mt-4">
+              <div className="card-body">
+                <h2 className="h5 card-title">Tasks per member</h2>
+                <div className="table-responsive">
+                  <table className="table table-sm align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>Member</th>
+                        <th className="text-center">Total</th>
+                        <th className="text-center">To Do</th>
+                        <th className="text-center">In Progress</th>
+                        <th className="text-center">Done</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tasksPerUser.map((u) => (
+                        <tr key={u.name}>
+                          <td className="fw-medium">{u.name}</td>
+                          <td className="text-center">{u.total}</td>
+                          <td className="text-center">{u.todo}</td>
+                          <td className="text-center">{u.in_progress}</td>
+                          <td className="text-center text-success fw-semibold">{u.done}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
 
+        {/* Right column: Tasks table */}
         <div className="col-lg-7">
           <div className="card">
             <div className="card-body">
@@ -391,6 +454,7 @@ export default function ProjectDetail() {
                     <thead>
                       <tr>
                         <th>Task</th>
+                        <th>Priority</th>
                         <th>Assignee</th>
                         <th>Due</th>
                         <th>Status</th>
@@ -406,8 +470,11 @@ export default function ProjectDetail() {
                           <tr key={t._id}>
                             <td>
                               <div className="fw-medium">{t.title}</div>
-                              {t.description ? <div className="small text-muted">{t.description}</div> : null}
+                              {t.description ? (
+                                <div className="small text-muted">{t.description}</div>
+                              ) : null}
                             </td>
+                            <td>{priorityBadge(t.priority)}</td>
                             <td className="small">{t.assignedTo?.name || '—'}</td>
                             <td className="small">{formatDate(t.dueDate)}</td>
                             <td>
@@ -444,11 +511,9 @@ export default function ProjectDetail() {
                   </table>
                 </div>
               )}
-
               {isAdmin && tasks.length > 0 ? (
                 <p className="small text-muted mb-0 mt-2">
-                  Admins can create, assign, and delete tasks. Members may change status only on tasks assigned to
-                  them.
+                  Admins can create, assign, and delete tasks. Members may change status only on tasks assigned to them.
                 </p>
               ) : null}
             </div>
