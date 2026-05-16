@@ -43,7 +43,18 @@ if (process.env.SERVE_STATIC === '1') {
 
 app.use((err, _req, res, _next) => {
   console.error(err);
-  res.status(500).json({ message: 'Internal server error.' });
+
+  // Handle Mongo duplicate key errors (e.g. email unique index)
+  if (err && err.name === 'MongoServerError' && err.code === 11000) {
+    const key = Object.keys(err.keyValue || {})[0];
+    const message = key ? `${key} already exists.` : 'Duplicate key error.';
+    return res.status(409).json({ message });
+  }
+
+  const status = err.status || 500;
+  const payload = { message: err.message || 'Internal server error.' };
+  if (process.env.NODE_ENV !== 'production') payload.stack = err.stack;
+  res.status(status).json(payload);
 });
 
 const port = Number(process.env.PORT) || 5000;
